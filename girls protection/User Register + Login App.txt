@@ -1,0 +1,206 @@
+User Register + Login App
+
+React frontend
+
+Node.js + Express backend
+
+MySQL database
+
+JWT authentication
+
+No OTP
+
+📁 Project Structure
+fullstack-app/
+│
+├── client/   (React)
+└── server/   (Node + Express)
+🖥️ BACKEND CODE (Node + Express)
+
+Go inside server folder.
+
+Install:
+
+npm init -y
+npm install express mysql2 cors bcrypt jsonwebtoken dotenv
+📄 server.js
+require("dotenv").config();
+const express = require("express");
+const mysql = require("mysql2");
+const cors = require("cors");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const db = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "",
+  database: "fullstack_db"
+});
+
+db.connect(err => {
+  if (err) throw err;
+  console.log("MySQL Connected");
+});
+
+// REGISTER
+app.post("/register", async (req, res) => {
+  const { name, email, password } = req.body;
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  db.query(
+    "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
+    [name, email, hashedPassword],
+    (err, result) => {
+      if (err) return res.status(500).json(err);
+      res.json("User registered successfully");
+    }
+  );
+});
+
+// LOGIN
+app.post("/login", (req, res) => {
+  const { email, password } = req.body;
+
+  db.query(
+    "SELECT * FROM users WHERE email = ?",
+    [email],
+    async (err, results) => {
+      if (err) return res.status(500).json(err);
+      if (results.length === 0)
+        return res.status(404).json("User not found");
+
+      const validPassword = await bcrypt.compare(
+        password,
+        results[0].password
+      );
+
+      if (!validPassword)
+        return res.status(401).json("Wrong password");
+
+      const token = jwt.sign(
+        { id: results[0].id },
+        "secretkey",
+        { expiresIn: "1h" }
+      );
+
+      res.json({ token });
+    }
+  );
+});
+
+app.listen(5000, () => {
+  console.log("Server running on port 5000");
+});
+🗄️ DATABASE (MySQL)
+
+Run this in MySQL:
+
+CREATE DATABASE fullstack_db;
+
+USE fullstack_db;
+
+CREATE TABLE users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100),
+  email VARCHAR(100) UNIQUE,
+  password VARCHAR(255)
+);
+⚛️ FRONTEND CODE (React)
+
+Inside client folder:
+
+npm create vite@latest
+npm install
+npm install axios
+npm run dev
+📄 src/App.jsx
+
+Replace everything with:
+
+import { useState } from "react";
+import axios from "axios";
+
+function App() {
+  const [isLogin, setIsLogin] = useState(false);
+  const [user, setUser] = useState({
+    name: "",
+    email: "",
+    password: ""
+  });
+
+  const handleChange = e => {
+    setUser({ ...user, [e.target.name]: e.target.value });
+  };
+
+  const register = async () => {
+    await axios.post("http://localhost:5000/register", user);
+    alert("Registered successfully!");
+  };
+
+  const login = async () => {
+    const res = await axios.post(
+      "http://localhost:5000/login",
+      user
+    );
+    localStorage.setItem("token", res.data.token);
+    alert("Login successful!");
+  };
+
+  return (
+    <div style={{ textAlign: "center", marginTop: "50px" }}>
+      <h2>{isLogin ? "Login" : "Register"}</h2>
+
+      {!isLogin && (
+        <input
+          name="name"
+          placeholder="Name"
+          onChange={handleChange}
+        />
+      )}
+      <br />
+      <input
+        name="email"
+        placeholder="Email"
+        onChange={handleChange}
+      />
+      <br />
+      <input
+        name="password"
+        type="password"
+        placeholder="Password"
+        onChange={handleChange}
+      />
+      <br />
+      <button onClick={isLogin ? login : register}>
+        {isLogin ? "Login" : "Register"}
+      </button>
+
+      <p
+        style={{ cursor: "pointer", color: "blue" }}
+        onClick={() => setIsLogin(!isLogin)}
+      >
+        {isLogin
+          ? "Don't have an account? Register"
+          : "Already have an account? Login"}
+      </p>
+    </div>
+  );
+}
+
+export default App;
+▶️ How to Run
+1️⃣ Start MySQL
+2️⃣ Start Backend:
+node server.js
+3️⃣ Start Frontend:
+npm run dev
+
+Open:
+
+http://localhost:5173
